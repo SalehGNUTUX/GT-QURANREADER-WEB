@@ -418,6 +418,18 @@ header {
     box-shadow: 0 8px 25px rgba(0,0,0,0.4);
 }
 
+ .floating-btn:disabled,
+ .nav-btn:disabled,
+ .zoom-btn:disabled,
+ .audio-reciter-btn:disabled,
+ .audio-close-btn:disabled {
+     opacity: 0.45;
+     cursor: not-allowed;
+     pointer-events: none;
+     transform: none;
+     box-shadow: none;
+ }
+
 .audio-floating-btn:hover { background: #219653; }
 .theme-floating-btn:hover { background: #d35400; }
 .stop-floating-btn:hover { background: #c0392b; }
@@ -553,6 +565,30 @@ header {
     overflow-y: auto;
     border: 2px solid var(--accent-color);
 }
+
+ .modal-content::-webkit-scrollbar,
+ .modal-list::-webkit-scrollbar {
+     width: 10px;
+ }
+
+ .modal-content::-webkit-scrollbar-track,
+ .modal-list::-webkit-scrollbar-track {
+     background: rgba(255,255,255,0.06);
+     border-radius: 10px;
+ }
+
+ .modal-content::-webkit-scrollbar-thumb,
+ .modal-list::-webkit-scrollbar-thumb {
+     background: rgba(46, 134, 171, 0.65);
+     border-radius: 10px;
+     border: 2px solid rgba(0,0,0,0);
+     background-clip: padding-box;
+ }
+
+ .modal-content::-webkit-scrollbar-thumb:hover,
+ .modal-list::-webkit-scrollbar-thumb:hover {
+     background: rgba(46, 134, 171, 0.85);
+ }
 
 .modal-content h3 {
     color: var(--accent-color);
@@ -772,6 +808,10 @@ body.light-mode .quran-ayah {
 body.light-mode .surah-details {
     color: var(--text-color-light);
 }
+
+ body.light-mode .page-footer {
+     color: var(--text-color-light);
+ }
 
 body.light-mode .search-result-text {
     color: var(--text-color-light);

@@ -1,15 +1,18 @@
 // service-worker.js - الإصدار النهائي
-const CACHE_NAME = 'quran-reader-v4.0';
+const CACHE_NAME = 'quran-reader-v4.1';
+const SCOPE_PATHNAME = new URL(self.registration.scope).pathname;
+const BASE = SCOPE_PATHNAME.endsWith('/') ? SCOPE_PATHNAME : `${SCOPE_PATHNAME}/`;
 const STATIC_FILES = [
-    '/GT-QURANREADER-WEB/',
-    '/GT-QURANREADER-WEB/index.html',
-    '/GT-QURANREADER-WEB/style.css',  // ← غير من styles.css إلى style.css
-    '/GT-QURANREADER-WEB/script.js',
-    '/GT-QURANREADER-WEB/pwa.js',
-    '/GT-QURANREADER-WEB/manifest.json',
-    '/GT-QURANREADER-WEB/service-worker.js',
-    '/GT-QURANREADER-WEB/icons/icon-128x128.png',
-    '/GT-QURANREADER-WEB/icons/icon-512x512.png'
+    BASE,
+    `${BASE}index.html`,
+    `${BASE}errors.html`,
+    `${BASE}style.css`,
+    `${BASE}script.js`,
+    `${BASE}pwa.js`,
+    `${BASE}manifest.json`,
+    `${BASE}service-worker.js`,
+    `${BASE}icons/icon-128x128.png`,
+    `${BASE}icons/icon-512x512.png`
 ];
 
 // التثبيت
@@ -47,8 +50,8 @@ self.addEventListener('activate', (event) => {
 
 // اعتراض الطلبات
 self.addEventListener('fetch', (event) => {
-    // للملفات المحلية فقط
-    if (event.request.url.includes('/GT-QURANREADER-WEB/')) {
+    // للملفات المحلية ضمن نطاق الـ Service Worker فقط
+    if (event.request.url.startsWith(self.registration.scope)) {
         event.respondWith(
             caches.match(event.request)
                 .then(response => response || fetch(event.request))

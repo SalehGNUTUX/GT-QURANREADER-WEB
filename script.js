@@ -346,6 +346,61 @@ function normalizeText(text) {
     return text;
 }
 
+ function escapeHtml(text) {
+     return String(text)
+         .replace(/&/g, '&amp;')
+         .replace(/</g, '&lt;')
+         .replace(/>/g, '&gt;')
+         .replace(/"/g, '&quot;')
+         .replace(/'/g, '&#39;');
+ }
+
+ function escapeRegExp(text) {
+     return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+ }
+
+ function isArabicWordChar(ch) {
+     if (!ch) return false;
+     // Arabic blocks + Arabic-Indic digits
+     return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF0-9\u0660-\u0669]/.test(ch);
+ }
+
+ function matchWholeWord(normalizedHaystack, normalizedNeedle, index) {
+     const before = index > 0 ? normalizedHaystack[index - 1] : '';
+     const afterIndex = index + normalizedNeedle.length;
+     const after = afterIndex < normalizedHaystack.length ? normalizedHaystack[afterIndex] : '';
+     const beforeOk = !before || !isArabicWordChar(before);
+     const afterOk = !after || !isArabicWordChar(after);
+     return beforeOk && afterOk;
+ }
+
+ function buildArabicLoosePattern(query) {
+     // Allows diacritics/tatweel between letters so user queries without tashkeel still match.
+     const DIACRITICS = '[\\u064b-\\u0652\\u0670\\u0640]';
+     const parts = Array.from(String(query || '')).map((ch) => {
+         if (ch === ' ') return '\\s+';
+         return escapeRegExp(ch);
+     });
+     return parts.join(`${DIACRITICS}*`);
+ }
+
+ function highlightText(text, query) {
+     const safeText = escapeHtml(text);
+     const safeQuery = String(query || '').trim();
+     if (!safeQuery) return safeText;
+
+     const wordChars = '[\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF0-9\\u0660-\\u0669]';
+     const pattern = buildArabicLoosePattern(safeQuery);
+
+     try {
+         // Boundary-safe highlight so short terms like "طه" won't highlight inside longer words.
+         const re = new RegExp(`(^|[^${wordChars}])(${pattern})(?=[^${wordChars}]|$)`, 'giu');
+         return safeText.replace(re, (full, p1, p2) => `${p1}<mark>${p2}</mark>`);
+     } catch {
+         return safeText;
+     }
+ }
+
 // ========================================
 // الفئة الرئيسية - QuranReader مع إصلاحات شاملة
 // ========================================
@@ -359,6 +414,7 @@ class QuranReader {
         this.autoPlayNext = localStorage.getItem('gt_autoplay') !== 'false';
         this.selectedReciterName = localStorage.getItem('gt_reciter_name') || 'مشاري العفاسي';
         this.selectedFont = localStorage.getItem('gt_quran_font') || 'UthmanicHafs1';
+        this.lastSearchQuery = '';
 
         this.dataManager = new QuranDataManager();
         this.isOnline = navigator.onLine;
@@ -721,12 +777,29 @@ class QuranReader {
 
         this.pageNumber.textContent = `الصفحة: ${this.currentPage}`;
         this.updatePageInfo();
+        this.updateNavigationButtons();
 
         if (this.viewMode === 'image') {
             await this.displayImagePage();
         } else {
             await this.displayTextPage();
         }
+    }
+
+    updateNavigationButtons() {
+        const isAtFirst = this.currentPage <= 1;
+        const isAtLast = this.currentPage >= this.totalPages;
+
+        const setDisabled = (el, disabled) => {
+            if (!el) return;
+            el.disabled = Boolean(disabled);
+            el.setAttribute('aria-disabled', String(Boolean(disabled)));
+        };
+
+        setDisabled(this.prevBtn, isAtFirst);
+        setDisabled(this.floatingPrevBtn, isAtFirst);
+        setDisabled(this.nextBtn, isAtLast);
+        setDisabled(this.floatingNextBtn, isAtLast);
     }
 
     // *** تم إصلاح مشكلة "Race Condition" سابقاً، والآن تم تحديث المصدر في DataManager ***
@@ -820,7 +893,8 @@ class QuranReader {
                     foundContent = true;
                     const ayahElement = document.createElement('p');
                     ayahElement.className = 'quran-ayah';
-                    ayahElement.innerHTML = `${ayah.text} <span class="ayah-number">﴿${ayah.numberInSurah}﴾</span>`;
+                    const ayahTextHtml = this.lastSearchQuery ? highlightText(ayah.text, this.lastSearchQuery) : escapeHtml(ayah.text);
+                    ayahElement.innerHTML = `${ayahTextHtml} <span class="ayah-number">﴿${ayah.numberInSurah}﴾</span>`;
                     pageContent.appendChild(ayahElement);
                 }
             });
@@ -897,12 +971,14 @@ class QuranReader {
         this.audioPlayer.currentTime = 0;
         this.isPlaying = false;
         this.updateAudioButton();
+        this.updateAudioStopButton();
         this.showMessage('تم إيقاف التشغيل');
     }
 
     onAudioPlay() {
         this.isPlaying = true;
         this.updateAudioButton();
+        this.updateAudioStopButton();
         this.audioFloating.classList.add('show');
 
         const surahName = this.surahsData.find(s => s.number === this.currentAudioSurah)?.name.ar || '...';
@@ -912,6 +988,7 @@ class QuranReader {
     onAudioPause() {
         this.isPlaying = false;
         this.updateAudioButton();
+        this.updateAudioStopButton();
     }
 
     updateAudioButton() {
@@ -923,6 +1000,16 @@ class QuranReader {
                 this.audioBtn.innerHTML = '<i class="fas fa-play"></i>';
                 this.audioBtn.title = 'تشغيل التلاوة';
             }
+        }
+    }
+
+    updateAudioStopButton() {
+        const hasAudio = Boolean(this.audioPlayer && this.audioPlayer.src);
+        const canStop = hasAudio && (this.isPlaying || (this.audioPlayer && this.audioPlayer.currentTime > 0));
+
+        if (this.audioStopBtn) {
+            this.audioStopBtn.disabled = !canStop;
+            this.audioStopBtn.setAttribute('aria-disabled', String(!canStop));
         }
     }
 
@@ -1153,6 +1240,8 @@ class QuranReader {
             return;
         }
 
+        this.lastSearchQuery = query;
+
         if (!this.quranText) {
             this.showMessage('لم يتم تحميل النص القرآني بعد', 'error');
             return;
@@ -1183,17 +1272,34 @@ class QuranReader {
 
         if (!normalizedQuery) return [];
 
+        const resolveSurahName = (surahObj, surahNumber) => {
+            const fromObj = surahObj?.name?.ar || surahObj?.name || surahObj?.englishName || surahObj?.englishNameTranslation;
+            if (fromObj) return fromObj;
+            const embedded = (this.surahsData || EMBEDDED_SURAHS_DATA || []).find(s => s.number === surahNumber);
+            return embedded?.name?.ar || `(${surahNumber})`;
+        };
+
         this.quranText.forEach(surah => {
+            const surahNumber = surah?.number;
+            const surahName = resolveSurahName(surah, surahNumber);
+
             surah.ayahs.forEach(ayah => {
                 const normalizedText = normalizeText(ayah.text);
-                if (normalizedText.includes(normalizedQuery)) {
-                    results.push({
-                        surahNumber: surah.number,
-                        surahName: surah.name.ar, // استخدام الاسم العربي مباشرة
-                        ayahNumber: ayah.numberInSurah,
-                        ayahText: ayah.text,
-                        page: ayah.page
-                    });
+                if (!normalizedText) return;
+
+                let idx = normalizedText.indexOf(normalizedQuery);
+                while (idx !== -1) {
+                    if (matchWholeWord(normalizedText, normalizedQuery, idx)) {
+                        results.push({
+                            surahNumber: surahNumber,
+                            surahName: surahName,
+                            ayahNumber: ayah.numberInSurah,
+                            ayahText: ayah.text,
+                            page: ayah.page
+                        });
+                        break;
+                    }
+                    idx = normalizedText.indexOf(normalizedQuery, idx + normalizedQuery.length);
                 }
             });
         });
@@ -1207,11 +1313,14 @@ class QuranReader {
         const modalTitle = this.searchModal.querySelector('h3');
         if (modalTitle) modalTitle.innerHTML = '<i class="fas fa-search"></i> نتائج البحث';
 
+        const safeQuery = String(query || '').trim();
+        const safeQueryHtml = escapeHtml(safeQuery);
+
         if (results.length === 0) {
             this.searchResultsContent.innerHTML = `
             <div class="no-results" style="text-align: center; padding: 20px; color: var(--warning-color);">
             <i class="fas fa-search" style="font-size: 2em; margin-bottom: 10px;"></i>
-            <p>لم يتم العثور على نتائج للبحث: "${query}"</p>
+            <p>${safeQuery ? `لم يتم العثور على نتائج للبحث: "${safeQueryHtml}"` : 'لم يتم العثور على نتائج'}</p>
             </div>
             `;
             return;
@@ -1220,17 +1329,23 @@ class QuranReader {
         // استخدام innerHTML مرة واحدة لتحسين الأداء
         this.searchResultsContent.innerHTML = `
         <div class="search-header" style="padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px; text-align: center;">
-        <h4>نتائج البحث عن: "${query}"</h4>
+        <h4>${safeQuery ? `نتائج البحث عن: "${safeQueryHtml}"` : 'نتائج البحث'}</h4>
         <div class="results-count" style="font-size: 0.9em; opacity: 0.8;">${results.length} نتيجة</div>
         </div>
         <div class="search-results-list">
-        ${results.map(result => `
+        ${results.map(result => {
+            const rawName = (result && typeof result.surahName === 'string') ? result.surahName : '';
+            const trimmed = rawName.trim();
+            const fallback = (this.surahsData || EMBEDDED_SURAHS_DATA || []).find(s => s.number === result?.surahNumber)?.name?.ar;
+            const nameToShow = trimmed || fallback || `(${result?.surahNumber || ''})`;
+            return `
             <div class="search-result-item" data-page="${result.page}" style="cursor: pointer; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-            <div class="result-surah" style="font-weight: bold; color: var(--accent-color); margin-bottom: 5px;">سورة ${result.surahName} (آية ${result.ayahNumber})</div>
-            <div class="result-text" style="font-family: 'UthmanicHafs1'; font-size: 1.2em; line-height: 1.8; margin-top: 10px;">${result.ayahText}</div>
+            <div class="result-surah" style="font-weight: bold; color: var(--accent-color); margin-bottom: 5px;">سورة ${escapeHtml(nameToShow)} (آية ${result.ayahNumber})</div>
+            <div class="result-text" style="font-family: 'UthmanicHafs1'; font-size: 1.2em; line-height: 1.8; margin-top: 10px;">${highlightText(result.ayahText, safeQuery)}</div>
             <div class="result-meta" style="font-size: 0.8em; opacity: 0.7; margin-top: 10px;">الصفحة: ${result.page}</div>
             </div>
-            `).join('')}
+            `;
+        }).join('')}
             </div>
             `;
 
