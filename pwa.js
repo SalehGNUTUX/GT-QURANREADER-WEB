@@ -9,13 +9,14 @@ class PWAInstaller {
     
     init() {
         this.registerServiceWorker();
-        this.setupInstallPrompt();
+        this.hideInstallButton();
         this.detectStandaloneMode();
     }
     
     registerServiceWorker() {
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js')
+            const swUrl = this.getServiceWorkerUrl();
+            navigator.serviceWorker.register(swUrl)
                 .then(registration => {
                     console.log('✅ Service Worker مسجل بنجاح:', registration);
                     
@@ -41,12 +42,34 @@ class PWAInstaller {
             });
         }
     }
+
+    getServiceWorkerUrl() {
+        // Prefer registering relative to the current subfolder for GitHub Pages.
+        // Example: /GT-QURANREADER-WEB/index.html -> /GT-QURANREADER-WEB/service-worker.js
+        const pathname = window.location.pathname || '/';
+        const segments = pathname.split('/').filter(Boolean);
+
+        // If the app is served from a subfolder, use that as scope base.
+        // If served from domain root, keep it at '/service-worker.js'.
+        if (segments.length > 0) {
+            const base = `/${segments[0]}/`;
+            return `${base}service-worker.js`;
+        }
+
+        // If served from domain root
+        if (pathname === '/' || pathname === '') {
+            return '/service-worker.js';
+        }
+
+        // Legacy fallback default (historical app folder)
+        return '/GT-QURANREADER-WEB/service-worker.js';
+    }
     
     setupInstallPrompt() {
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             this.deferredPrompt = e;
-            this.showInstallButton();
+            this.hideInstallButton();
         });
         
         window.addEventListener('appinstalled', () => {

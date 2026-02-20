@@ -2,51 +2,51 @@
     "name": "GT Quran Reader",
     "short_name": "القرآن",
     "description": "تطبيق القرآن الكريم",
-    "start_url": "/GT-QURANREADER-WEB/",
+    "start_url": "./",
     "display": "standalone",
     "background_color": "#1a1a2e",
     "theme_color": "#2e86ab",
     "orientation": "portrait",
     "icons": [
         {
-            "src": "/GT-QURANREADER-WEB/icons/icon-16x16.png",
+            "src": "icons/icon-16x16.png",
             "sizes": "16x16",
             "type": "image/png"
         },
         {
-            "src": "/GT-QURANREADER-WEB/icons/icon-24x24.png",
+            "src": "icons/icon-24x24.png",
             "sizes": "24x24",
             "type": "image/png"
         },
         {
-            "src": "/GT-QURANREADER-WEB/icons/icon-32x32.png",
+            "src": "icons/icon-32x32.png",
             "sizes": "32x32",
             "type": "image/png"
         },
         {
-            "src": "/GT-QURANREADER-WEB/icons/icon-48x48.png",
+            "src": "icons/icon-48x48.png",
             "sizes": "48x48",
             "type": "image/png"
         },
         {
-            "src": "/GT-QURANREADER-WEB/icons/icon-64x64.png",
+            "src": "icons/icon-64x64.png",
             "sizes": "64x64",
             "type": "image/png"
         },
         {
-            "src": "/GT-QURANREADER-WEB/icons/icon-128x128.png",
+            "src": "icons/icon-128x128.png",
             "sizes": "128x128",
             "type": "image/png",
             "purpose": "any"
         },
         {
-            "src": "/GT-QURANREADER-WEB/icons/icon-256x256.png",
+            "src": "icons/icon-256x256.png",
             "sizes": "256x256",
             "type": "image/png",
             "purpose": "any"
         },
         {
-            "src": "/GT-QURANREADER-WEB/icons/icon-512x512.png",
+            "src": "icons/icon-512x512.png",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "any maskable"
