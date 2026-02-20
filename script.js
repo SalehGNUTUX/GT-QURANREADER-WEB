@@ -50,16 +50,16 @@ const APP_CONFIG = {
     image: {
         baseUrl: "https://raw.githubusercontent.com/SalehGNUTUX/Quran-PNG/master/"
     },
-    // مصدر النص (API)
+    // نص الآيات ومعلومات السور
     text: {
-        baseUrl: "https://api.alquran.cloud/v1/quran/quran-uthmani"
+        baseUrlZstd: "./data/quran-uthmani-surahs.zst"
     }
 };
 
 // ========================================
 // بيانات السور المضمنة (كاملة)
 // ========================================
-const EMBEDDED_SURAHS_DATA = [
+const EMBEDDED_SURAHS_DATA = [  // TODO: كل هذه المعلومات في ملف بيانات القرآن الذي الآن في المستودع
     { number: 1, name: { ar: "الفاتحة", en: "Al-Fatiha" }, verses_count: 7, revelation_place: { ar: "مكية" }, start_page: 1 },
 { number: 2, name: { ar: "البقرة", en: "Al-Baqarah" }, verses_count: 286, revelation_place: { ar: "مدنية" }, start_page: 2 },
 { number: 3, name: { ar: "آل عمران", en: "Aal-Imran" }, verses_count: 200, revelation_place: { ar: "مدنية" }, start_page: 50 },
@@ -183,12 +183,21 @@ const AVAILABLE_FONTS = [
 { id: 'AmiriQuranColored', name: 'خط أميري ملون', style: 'amiri-quran-colored.ttf' },
 ];
 
+// =======================================
+// Zstd fetch & uncompress
+// =======================================
+function unzstd (path) {
+  return fetch(path)
+    .then((res) => res.ok ? res.arrayBuffer() : null)
+    .then((buf) => (new TextDecoder).decode( fzstd.decompress(new Uint8Array(buf)) ) );
+}
+
 // ========================================
 // QuranDataManager - مع تحسينات الأداء
 // ========================================
 class QuranDataManager {
     constructor() {
-        this.textApiUrl = APP_CONFIG.text.baseUrl;
+        this.textApiUrlZstd = APP_CONFIG.text.baseUrlZstd;
         this.imageUrlBase = APP_CONFIG.image.baseUrl;
         this.cache = new Map();
         this.pagesData = this.generatePagesData();
@@ -252,16 +261,9 @@ class QuranDataManager {
     }
 
     async loadTextData() {
-        const url = this.textApiUrl;
+        const url = this.textApiUrlZstd;
         try {
-            const resp = await fetch(url);
-            const json = await resp.json();
-            if (json.code === 200 && json.data && json.data.surahs) {
-                console.log('📜 تم جلب النص العثماني من alquran.cloud');
-                return json.data.surahs;
-            } else {
-                throw new Error('استجابة غير متوقعة من API النص');
-            }
+            return JSON.parse(await unzstd(url));
         } catch (err) {
             console.error('❌ خطأ في جلب نص القرآن:', err);
             return null;
